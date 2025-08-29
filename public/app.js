@@ -25,6 +25,7 @@ routeStatus: document.getElementById('routeStatus'),
 currentAlgorithm: document.getElementById('currentAlgorithm'),
 routeEfficiency: document.getElementById('routeEfficiency'),
 algorithm: document.getElementById('algorithm'),
+searchCategory: document.getElementById('searchCategory'),
 priority: document.getElementById('priority')
 };
 function log(msg) {
@@ -94,7 +95,11 @@ map.setView([choice.lat, choice.lon], 12);
 log(`Added waypoint: ${state.waypoints[state.waypoints.length - 1].name}`);
 }
 async function geocodeAddress(addr) {
-const r = await fetch(`/api/geocode?q=${encodeURIComponent(addr)}`);
+const params = new URLSearchParams({ q: addr });
+if (els.searchCategory && els.searchCategory.value && els.searchCategory.value !== 'all') {
+params.set('category', els.searchCategory.value);
+}
+const r = await fetch(`/api/geocode?${params.toString()}`);
 const data = await r.json();
 return data.results || [];
 }
@@ -144,6 +149,14 @@ els.optimizeBtn.disabled = true;
 try {
 if (algorithm === 'osrm_trip') {
 await optimizeViaServerTrip();
+} else if (algorithm === 'nearest_neighbor') {
+await optimizeNearestNeighborClient();
+} else if (algorithm === 'nearest_insertion') {
+await optimizeNearestInsertionClient();
+} else if (algorithm === 'farthest_insertion') {
+await optimizeFarthestInsertionClient();
+} else if (algorithm === 'two_opt') {
+await optimizeTwoOptClient();
 } else {
 await optimizeNearestNeighborClient();
 }
@@ -203,6 +216,148 @@ let best = 0, bestd = Infinity;
 for (let i = 0; i < unvisited.length; i++) {
 const d = dist(cur, unvisited[i]);
  if (d < bestd) { bestd = d; best = i; }
+}
+
+async function optimizeNearestInsertionClient() {
+const pts = state.waypoints.map(w => ({ ...w }));
+if (pts.length < 2) return;
+const dist = (a, b) => {
+const dx = a.lat - b.lat, dy = a.lon - b.lon;
+return Math.sqrt(dx*dx + dy*dy);
+};
+// start with first two points
+let route = [pts[0], pts[1]];
+let unvisited = pts.slice(2);
+while (unvisited.length) {
+// pick closest unvisited to the route
+let bestPointIdx = 0, bestToRoute = Infinity;
+for (let i = 0; i < unvisited.length; i++) {
+const p = unvisited[i];
+// distance to nearest route vertex
+let dmin = Infinity;
+for (let r of route) dmin = Math.min(dmin, dist(p, r));
+if (dmin < bestToRoute) { bestToRoute = dmin; bestPointIdx = i; }
+}
+const p = unvisited.splice(bestPointIdx, 1)[0];
+// find insertion position with minimal increase
+let bestPos = 1, bestInc = Infinity;
+for (let i = 0; i < route.length; i++) {
+const a = route[i];
+const b = route[(i + 1) % route.length] || null;
+if (!b) { // insert at end
+const inc = dist(a, p);
+if (inc < bestInc) { bestInc = inc; bestPos = i + 1; }
+continue;
+}
+const inc = dist(a, p) + dist(p, b) - dist(a, b);
+if (inc < bestInc) { bestInc = inc; bestPos = i + 1; }
+}
+route.splice(bestPos, 0, p);
+}
+const latlngs = route.map(r => [r.lat, r.lon]);
+clearRouteLayer();
+state.routeLayer = L.polyline(latlngs, { color: '#1d4ed8', weight: 5 }).addTo(map);
+map.fitBounds(L.latLngBounds(latlngs), { padding: [30, 30] });
+const km = route.length > 1 ? (route.length - 1) * 5 : 0;
+updateStats(km * 1000, km * 6 * 60);
+els.routeStatus.textContent = 'Optimized (Nearest Insertion)';
+els.routeEfficiency.textContent = `${calcEfficiencyHeuristic(km*1000)}%`;
+log('Client-side nearest insertion route drawn (approximate).');
+}
+
+async function optimizeFarthestInsertionClient() {
+const pts = state.waypoints.map(w => ({ ...w }));
+if (pts.length < 2) return;
+const dist = (a, b) => {
+const dx = a.lat - b.lat, dy = a.lon - b.lon;
+return Math.sqrt(dx*dx + dy*dy);
+};
+// start with two farthest points among the first three if possible
+let route = [pts[0], pts[1]];
+let unvisited = pts.slice(2);
+while (unvisited.length) {
+// pick farthest unvisited from the route
+let bestPointIdx = 0, farthest = -1;
+for (let i = 0; i < unvisited.length; i++) {
+const p = unvisited[i];
+let dmin = Infinity;
+for (let r of route) dmin = Math.min(dmin, dist(p, r));
+if (dmin > farthest) { farthest = dmin; bestPointIdx = i; }
+}
+const p = unvisited.splice(bestPointIdx, 1)[0];
+// insert where it increases distance least
+let bestPos = 1, bestInc = Infinity;
+for (let i = 0; i < route.length; i++) {
+const a = route[i];
+const b = route[(i + 1) % route.length] || null;
+if (!b) {
+const inc = dist(a, p);
+if (inc < bestInc) { bestInc = inc; bestPos = i + 1; }
+continue;
+}
+const inc = dist(a, p) + dist(p, b) - dist(a, b);
+if (inc < bestInc) { bestInc = inc; bestPos = i + 1; }
+}
+route.splice(bestPos, 0, p);
+}
+const latlngs = route.map(r => [r.lat, r.lon]);
+clearRouteLayer();
+state.routeLayer = L.polyline(latlngs, { color: '#059669', weight: 5 }).addTo(map);
+map.fitBounds(L.latLngBounds(latlngs), { padding: [30, 30] });
+const km = route.length > 1 ? (route.length - 1) * 5 : 0;
+updateStats(km * 1000, km * 6 * 60);
+els.routeStatus.textContent = 'Optimized (Farthest Insertion)';
+els.routeEfficiency.textContent = `${calcEfficiencyHeuristic(km*1000)}%`;
+log('Client-side farthest insertion route drawn (approximate).');
+}
+
+async function optimizeTwoOptClient() {
+// start with nearest neighbor route
+const pts = state.waypoints.map(w => ({ ...w }));
+if (pts.length < 2) return;
+const dist = (a, b) => {
+const dx = a.lat - b.lat, dy = a.lon - b.lon;
+return Math.sqrt(dx*dx + dy*dy);
+};
+let route = [pts[0]];
+let unvisited = pts.slice(1);
+while (unvisited.length) {
+const cur = route[route.length - 1];
+let best = 0, bestd = Infinity;
+for (let i = 0; i < unvisited.length; i++) {
+const d = dist(cur, unvisited[i]);
+if (d < bestd) { bestd = d; best = i; }
+}
+route.push(unvisited.splice(best, 1)[0]);
+}
+// 2-opt improvement
+const totalDist = route => {
+let s = 0;
+for (let i = 0; i < route.length - 1; i++) s += dist(route[i], route[i+1]);
+return s;
+};
+let improved = true;
+while (improved) {
+improved = false;
+for (let i = 1; i < route.length - 2; i++) {
+for (let k = i + 1; k < route.length - 1; k++) {
+const newRoute = route.slice(0, i).concat(route.slice(i, k + 1).reverse(), route.slice(k + 1));
+if (totalDist(newRoute) + 1e-9 < totalDist(route)) {
+route = newRoute;
+improved = true;
+}
+}
+}
+}
+const latlngs = route.map(r => [r.lat, r.lon]);
+clearRouteLayer();
+state.routeLayer = L.polyline(latlngs, { color: '#f59e0b', weight: 5 }).addTo(map);
+map.fitBounds(L.latLngBounds(latlngs), { padding: [30, 30] });
+const km = route.length > 1 ? (route.length - 1) * 5 : 0;
+updateStats(km * 1000, km * 6 * 60);
+els.routeStatus.textContent = 'Optimized (2-Opt)';
+els.routeEfficiency.textContent = `${calcEfficiencyHeuristic(km*1000)}%`;
+log('Client-side 2-Opt route drawn (approximate).');
 }
 route.push(unvisited.splice(best, 1)[0]);
 }

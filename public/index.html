@@ -25,6 +25,26 @@
 <label for="waypointAddress">Address</label>
 <input type="text" id="waypointAddress" placeholder="Enter address">
 </div>
+<div class="input-group">
+<label for="searchCategory">Search Category</label>
+<select id="searchCategory">
+<option value="all">All</option>
+<option value="college">College / University</option>
+<option value="school">School</option>
+<option value="hospital">Hospital</option>
+<option value="restaurant">Restaurant</option>
+<option value="bank">Bank</option>
+<option value="hotel">Hotel</option>
+<option value="park">Park</option>
+<option value="mall">Mall</option>
+<option value="bus station">Bus Station</option>
+<option value="train station">Train Station</option>
+<option value="airport">Airport</option>
+<option value="police">Police</option>
+<option value="fire station">Fire Station</option>
+<option value="post office">Post Office</option>
+</select>
+</div>
 <button class="btn" id="addWaypointBtn">Add Waypoint</button>
 <div id="geocodeResults" class="geocode-results"></div>
 </div>
@@ -35,6 +55,9 @@
 <select id="algorithm">
 <option value="osrm_trip">OSRM Trip (recommended)</option>
 <option value="nearest_neighbor">Nearest Neighbor (client)</option>
+<option value="nearest_insertion">Nearest Insertion (client)</option>
+<option value="farthest_insertion">Farthest Insertion (client)</option>
+<option value="two_opt">2-Opt Improvement (client)</option>
 </select>
 </div>
 <div class="input-group">

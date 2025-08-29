@@ -8,8 +8,29 @@ app.use(express.static('public'));
 app.get('/api/geocode', async (req, res) => {
   try {
     const q = (req.query.q || '').trim();
+    const category = (req.query.category || '').trim().toLowerCase();
     if (!q) return res.status(400).json({ error: 'Missing q' });
-    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(q)}`;
+    const categoryHints = {
+      college: ['college', 'university', 'campus'],
+      school: ['school'],
+      hospital: ['hospital', 'clinic', 'medical college'],
+      restaurant: ['restaurant', 'cafe'],
+      bank: ['bank', 'atm'],
+      hotel: ['hotel'],
+      park: ['park', 'garden'],
+      mall: ['mall', 'shopping centre', 'shopping center'],
+      'bus station': ['bus station', 'bus stand', 'bus terminal'],
+      'train station': ['railway station', 'train station'],
+      airport: ['airport'],
+      police: ['police station'],
+      'fire station': ['fire station'],
+      'post office': ['post office']
+    };
+    const suffix = category && categoryHints[category]
+      ? ' ' + categoryHints[category].join(' ')
+      : '';
+    const fullQuery = (q + suffix).trim();
+    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=10&addressdetails=1&q=${encodeURIComponent(fullQuery)}`;
     const r = await fetch(url, {
       headers: { 'User-Agent': 'optiroute-app/1.0 (contact: example@example.com)' }
     });
