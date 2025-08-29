@@ -1,0 +1,97 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Route Optimization System</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="container">
+<div class="header">
+<h1>🚗 Route Optimization System</h1>
+<p>Plan the most efficient routes with advanced algorithms</p>
+</div>
+<div class="main-content">
+<div class="control-panel">
+<div class="section">
+<h3>📍 Add Waypoint</h3>
+<div class="input-group">
+<label for="waypointName">Location Name</label>
+<input type="text" id="waypointName" placeholder="Enter location name">
+</div>
+<div class="input-group">
+<label for="waypointAddress">Address</label>
+<input type="text" id="waypointAddress" placeholder="Enter address">
+</div>
+<button class="btn" id="addWaypointBtn">Add Waypoint</button>
+<div id="geocodeResults" class="geocode-results"></div>
+</div>
+<div class="section">
+<h3>⚙️ Optimization Settings</h3>
+<div class="input-group">
+<label for="algorithm">Algorithm</label>
+<select id="algorithm">
+<option value="osrm_trip">OSRM Trip (recommended)</option>
+<option value="nearest_neighbor">Nearest Neighbor (client)</option>
+</select>
+</div>
+<div class="input-group">
+<label for="priority">Optimization Priority</label>
+<select id="priority">
+<option value="distance">Minimize Distance</option>
+<option value="time">Minimize Time</option>
+<option value="fuel">Minimize Fuel Cost</option>
+</select>
+</div>
+<button class="btn btn-secondary" id="optimizeBtn">🎯 Optimize Route</button>
+<button class="btn" id="clearBtn">🔄 Clear All</button>
+</div>
+<div class="section">
+<h3>📊 Route Statistics</h3>
+<div class="stats-grid">
+<div class="stat-card">
+<div class="stat-value" id="totalDistance">0</div>
+<div class="stat-label">Total Distance (km)</div>
+</div>
+<div class="stat-card">
+<div class="stat-value" id="totalTime">0</div>
+<div class="stat-label">Est. Time (min)</div>
+</div>
+<div class="stat-card">
+<div class="stat-value" id="wayPointCount">0</div>
+<div class="stat-label">Waypoints</div>
+</div>
+<div class="stat-card">
+<div class="stat-value" id="fuelCost">₹0</div>
+<div class="stat-label">Est. Fuel Cost</div>
+</div>
+</div>
+</div>
+<div class="section">
+<h3>📍 Waypoints</h3>
+<div id="waypointsList"></div>
+</div>
+<div class="section">
+<h3>📝 Optimization Log</h3>
+<div class="optimization-log" id="optimizationLog">
+<div class="log-entry">System ready. Add waypoints to begin.</div>
+</div>
+</div>
+</div>
+<div class="map-container">
+<div id="map" class="map-canvas"></div>
+<div class="route-info">
+<h4>Route Information</h4>
+<p><strong>Status:</strong> <span id="routeStatus">Ready</span></p>
+<p><strong>Algorithm:</strong> <span id="currentAlgorithm">None</span></p>
+<p><strong>Efficiency:</strong> <span id="routeEfficiency">0%</span></p>
+</div>
+</div>
+</div>
+</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="app.js"></script>
+</body>
+</html>
